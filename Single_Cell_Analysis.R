@@ -426,8 +426,8 @@ ref_harmObj = harmony::HarmonyMatrix(
   meta_data = meta_all, ## dataframe with cell labels
   theta = c(2), ## cluster diversity enforcement
   vars_use = c('sample'), ## variable to integrate out
-  nclust = 100, ## number of clusters in Harmony model: use more cluster centroids to capture more subsets
-  max.iter.harmony = 3,
+  nclust = 200, ## number of clusters in Harmony model: use more cluster centroids to capture more subsets
+  max.iter.harmony = 10,
   return_object = TRUE, ## return the full Harmony model object
   do_pca = FALSE ## don't recompute PCs
 )
