@@ -354,6 +354,67 @@ intersect1 <- intersect(row.names(crohns_exprs_norm),row.names(HIV_exprs_norm))
 HIV_intersect <- HIV_exprs_norm[intersect1,]
 crohns_intersect <- crohns_exprs_norm[intersect1,]
 
+# add cluster data into crohns_meta_all
+# crohns_combined_meta <- read.csv("/Users/hannahwang/github/Projects/Zhang_lab/GSE163314_All.combined.metadata.csv.gz")
+# crohns_combined_meta1 <- sub("_", "-", crohns_combined_meta[,1])
+# rownames(crohns_combined_meta) <- crohns_combined_meta1
+# crohns_combined_meta1<-as.data.frame(crohns_combined_meta1)
+# 
+# crohns_meta <- readRDS("crohns_kuhn.rds")
+# rownames(crohns_meta) <- sub(".*_ ", "", rownames(crohns_meta))
+# crohns_meta <- cbind(crohns_meta,rownames(crohns_meta))
+# matrix_crohns <- matrix(nrow=62166, ncol=6)
+# df_crohns <- as.data.frame(matrix_crohns)
+# crohns_meta <- cbind(crohns_meta,df_crohns)
+# 
+# new_meta <- matrix(nrow=62166, ncol=2)
+# 
+# for (row in 1:nrow(crohns_meta)) {
+#   if((crohns_combined_meta1[row,1] %in% crohns_meta[,4])){
+#     new_meta[row,2] <- (crohns_meta[row,1])
+#     new_meta[row,2] <- (crohns_combined_meta[row,9])
+#   } else {crohns_meta[row,4] <- (NA)
+#   }} 
+# 
+# crohns_meta_all <- cbind(crohns_meta_all,crohns_meta[,9])
+# colnames(crohns_meta_all)[7] <- "cluster"
+
+# new code
+crohns_combined_meta <- read.csv("/Users/hannahwang/github/Projects/Zhang_lab/GSE163314_All.combined.metadata.csv.gz")
+crohns_combined_meta[,2] <- sub("_.*", "",crohns_combined_meta[,2])
+crohns_combined_meta[,2] <- paste0(crohns_combined_meta[,2],"_")
+crohns_combined_meta[,1] <- paste(crohns_combined_meta[,2],crohns_combined_meta[,1])
+crohns_combined_meta[,1] <- sub("_", "-", crohns_combined_meta[,1])
+crohns_combined_meta[,1] <- sub("_", "-", crohns_combined_meta[,1])
+crohns_combined_meta[,1] <- sub("- ", "_", crohns_combined_meta[,1])
+crohns_combined_meta[,1] <- sub("-.*", "",crohns_combined_meta[,1])
+
+
+crohns_meta <- readRDS("crohns_kuhn.rds")
+X_df <- as.data.frame(matrix(rownames(crohns_meta)))
+crohns_meta <- cbind(crohns_meta,X_df)
+crohns_meta[,4] <- sub("P", "B", crohns_meta[,4])
+crohns_meta[,4] <- sub("_", "-", crohns_meta[,4])
+crohns_meta[,4] <- sub("- ", "_", crohns_meta[,4])
+crohns_meta[,4] <- sub("-.*", "", crohns_meta[,4])
+
+merge_combined <- merge(x=crohns_meta,y=crohns_combined_meta,by.x="V1", by.y="X",all.x=TRUE)
+clusters1 <- cbind(merge_combined$V1,merge_combined$clusters)
+clusters1<- as.data.frame(clusters1)
+colnames(clusters1) <- c("cell","clusters")
+
+crohns_meta_all[,1] <- sub("-.*", "", crohns_meta_all[,1])
+crohns_meta_all[,1] <- sub(" ", "", crohns_meta_all[,1])
+crohns_meta_all <- merge(x=crohns_meta_all,y=clusters1,by.x="cell", by.y="cell",all.x=TRUE)
+
+# add empty cluster column to HIV meta
+HIV_empty <- matrix(nrow=35750,ncol=1)
+colnames(HIV_empty)[1] <- "clusters"
+HIV_empty <- as.data.frame(HIV_empty)
+HIV_meta_all <- cbind(HIV_meta_all,HIV_empty)
+HIV_meta_all[,1] <- sub("-.*", "", HIV_meta_all[,1])
+HIV_meta_all[,1] <- sub(" ", "", HIV_meta_all[,1])
+
 # crohns_intersect <- crohns_exprs_norm[rownames(crohns_exprs_norm) %in% intersect1, ]
 # HIV_intersect <- HIV_exprs_norm[rownames(HIV_exprs_norm) %in% intersect1, ]
 # NA <- c("NA")
@@ -366,8 +427,12 @@ exprs_norm <- cbind(crohns_intersect,HIV_intersect)
 meta_all <- rbind(HIV_meta_all,crohns_meta_all)
 
 #intersection of meta_all$cell and exprs_norm to make them exact matches
+colnames(exprs_norm) <- sub("-.*", "", colnames(exprs_norm))
+colnames(exprs_norm) <- sub(" ", "", colnames(exprs_norm))
+
+
 intersect2 <- intersect(colnames(exprs_norm),meta_all$cell)
-meta_all <- meta_all[rownames(meta_all) %in% intersect2,]
+meta_all <- meta_all[meta_all$cell %in% intersect2,]
 
 # function "all" order matters so we are alphabetizing
 exprs_norm <- exprs_norm[,order(colnames(exprs_norm))]
@@ -380,6 +445,7 @@ all(colnames(exprs_norm) == meta_all$cell)
 exprs_norm <- exprs_norm[-2,]
 
 # finding highly variable sample
+genes_exclude <- grep("^MT-|^RPL|^RPS|MALAT1|MIR-", row.names(exprs_norm), value = TRUE)
 vargenes_df <- FindVariableGenesBatch(exprs_norm, meta_all)
 
 nrow(vargenes_df)
@@ -443,7 +509,176 @@ reference = symphony::buildReferenceFromHarmonyObj(
   do_umap = TRUE,         # Set to TRUE only when UMAP model was saved for reference
   )
 
+# save
+saveRDS(reference, '2022_07_14_single_cell_analysis_clusters.rds')
+
+
 # Visualize
 umap_labels <- cbind(reference$umap, reference$meta_data)
 colnames(umap_labels)[1:2] <- c("UMAP1", "UMAP2")
 umap_labels[1:4,]
+
+str(reference)
+
+# define the colors for each plot
+library(RColorBrewer)
+
+meta_colors <- list(
+  "disease" = c(
+    "AS" = "#EFFF03",
+    "CD" = "green", 
+    "CDAS" = "purple",
+    "Control" = "blue",
+    "Healthy" = "orange",
+    "HIV" = "red"
+  ))
+
+meta_colors <- list(
+  "clusters" = c(
+    "Bmem" = "purple",
+    "Bnaive" = "purple", 
+    "CD4_Tmem" = "purple",
+    "CD4_Tnaive" = "purple",
+    "CD8_T" = "purple",
+    "DC2_CD1C" = "purple",
+    "DC4_CD16"= "purple",
+    "Mono1_CD14" = "purple",
+    "NK" = "purple",
+    "Plasma" = "purple",
+    "SG2M" = "purple",
+    "Tcell" = "purple",
+    "DC6_pDC" = "purple"
+  ))
+
+meta_colors <- list(
+  "tissue" = c(
+    "blood" = "orange",
+    "Blood" = "green", 
+    "Colon" = "purple"
+  ))
+
+p1 <- ggplot(umap_labels[sample(nrow(umap_labels)),],
+             aes(x = UMAP1, y = UMAP2, fill= sample)
+) +
+ # geom_hex(bins = 150) +
+  geom_point(size = 1, stroke = 0.0001, shape = 21, alpha = 0.6) +
+  #facet_wrap(~sample)+
+  #scale_fill_manual(values = meta_colors$cluster, name = "") +
+  theme_bw(base_size = 15) 
+
+
+p2 <- ggplot(umap_labels[sample(nrow(umap_labels)),],
+             aes(x = UMAP1, y = UMAP2, fill= disease)
+) +
+  # geom_hex(bins = 150) +
+  geom_point(size = 1, stroke = 0.0001, shape = 21, alpha = 0.6) +
+  #facet_grid(disease ~ tissue) +
+  #facet_wrap(~disease)+
+  scale_fill_manual(values = meta_colors$disease, name = "") +
+  theme_bw(base_size = 15) 
+
+p3 <- ggplot(umap_labels[sample(nrow(umap_labels)),],
+             aes(x = UMAP1, y = UMAP2, fill= batch)
+) +
+  # geom_hex(bins = 150) +
+  geom_point(size = 1, stroke = 0.0001, shape = 21, alpha = 0.6) +
+  # scale_fill_manual(values = meta_colors$cluster, name = "") +
+  theme_bw(base_size = 15) 
+
+p4 <- ggplot(umap_labels[sample(nrow(umap_labels)),],
+             aes(x = UMAP1, y = UMAP2, fill= tissue)
+) +
+  # geom_hex(bins = 150) +
+  geom_point(size = 1, stroke = 0.0001, shape = 21, alpha = 0.6) +
+  scale_fill_manual(values = meta_colors$tissue, name = "") +
+  #facet_wrap(~tissue)+
+  theme_bw(base_size = 15) 
+
+p5 <- ggplot(umap_labels[sample(nrow(umap_labels)),],
+             aes(x = UMAP1, y = UMAP2, fill= dataset)
+) +
+  # geom_hex(bins = 150) +
+  geom_point(size = 1, stroke = 0.0001, shape = 21, alpha = 0.6) +
+  # scale_fill_manual(values = meta_colors$cluster, name = "") +
+  #facet_wrap(~dataset)
+  theme_bw(base_size = 15) 
+
+umap_labels1 <- umap_labels[complete.cases(umap_labels), ]      
+
+p6 <- ggplot(umap_labels1,
+             aes(x = UMAP1, y = UMAP2, fill= clusters)
+) +
+  # geom_hex(bins = 150) +
+  geom_point(size = 1, stroke = 0.0001, shape = 21, alpha = 0.6) +
+  #scale_fill_manual(values = meta_colors$clusters, name = "") +
+  theme_bw(base_size = 15) +
+  facet_wrap(~clusters, nrow =4)
+  #scale_fill_brewer(palette="Set3")
+
+meta_colors <- list(
+  "clusters1" = c(
+    "Bmem" = "#e41a1c",
+    "Bnaive" = "#377eb8", 
+    "CD4_Tmem" = "#4daf4a",
+    "CD4_Tnaive" = "purple",
+    "CD8_T" = "orange",
+    "DC2_CD1C" = "#ec34be",
+    "DC4_CD16"= "#09c6ce",
+    "Mono1_CD14" = "#633126",
+    "NK" = "#167140",
+    "Plasma" = "black",
+    "SG2M" = "#c7db1a",
+    "Tcell" = "#7d7e69",
+    "DC6_pDC" = "#1c3ea5"
+  ))
+
+p7 <- ggplot(umap_labels1,
+             aes(x = UMAP1, y = UMAP2, fill= clusters)
+) +
+  # geom_hex(bins = 150) +
+  geom_point(size = 1, stroke = 0.0001, shape = 21, alpha = 0.6) +
+  #scale_fill_manual(values = meta_colors$clusters1, name = "") +
+  theme_bw(base_size = 15)
+  #facet_wrap(~clusters, nrow=4)
+#scale_fill_brewer(palette="Set3")
+
+options(repr.plot.height = 5, repr.plot.width = 15)
+plot_grid(p1, p2, p4, p5, labels = c('A', 'B', 'C', 'D'), ncol =2)
+plot_grid(p6,p7)
+
+dim(Z_pca_ref)
+dim(umap_labels)
+pcs <- as.data.frame(t(Z_pca_ref))
+colnames(pcs) <- paste0("PC", colnames(pcs), sep="")
+umap_labels_pcs <- cbind(umap_labels, pcs)
+umap_labels_pcs[1:4,]
+x1 <- ggplot(umap_labels_pcs[sample(nrow(umap_labels_pcs)),],
+             aes(x = PCV1, y = PCV3, fill= sample)
+) +
+  # geom_hex(bins = 150) +
+  geom_point(size = 1, stroke = 0.0001, shape = 21, alpha = 0.6) +
+  #scale_fill_manual(values = meta_colors$cluster, name = "") +
+  theme_bw(base_size = 15) 
+x1
+
+
+
+# Get centroid
+cluster_sizes = reference$cache[[1]] %>% as.matrix()
+centroid_sums = t(reference$Z_corr %*% t(reference$R)) %>% as.data.frame()
+centroids = sweep(centroid_sums, 1, cluster_sizes, "/")
+colnames(centroids) = paste0("hPC", c(1:20))
+dim(centroids)
+
+ref_umap_model = uwot::load_uwot(reference$save_uwot_path, verbose = FALSE)
+umap_centroids = uwot::umap_transform(centroids, ref_umap_model)
+umap_centroids <- as.data.frame(umap_centroids)
+colnames(umap_centroids) <- c("UMAP1", "UMAP2")
+umap_centroids$cell <- rep("NA", nrow(umap_centroids))
+umap_centroids$cell_type <- rep("NA", nrow(umap_centroids))
+umap_centroids$disease <- rep("NA", nrow(umap_centroids))
+umap_centroids$sample <- rep("NA", nrow(umap_centroids))
+umap_centroids$plate <- rep("NA", nrow(umap_centroids))
+umap_centroids$cluster <- rep("Centroid", nrow(umap_centroids))
+umap_centroids[1:4,]
+dim(umap_centroids)
