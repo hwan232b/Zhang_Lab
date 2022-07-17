@@ -390,22 +390,32 @@ crohns_combined_meta[,1] <- sub("- ", "_", crohns_combined_meta[,1])
 crohns_combined_meta[,1] <- sub("-.*", "",crohns_combined_meta[,1])
 
 
-crohns_meta <- readRDS("crohns_kuhn.rds")
-X_df <- as.data.frame(matrix(rownames(crohns_meta)))
-crohns_meta <- cbind(crohns_meta,X_df)
-crohns_meta[,4] <- sub("P", "B", crohns_meta[,4])
-crohns_meta[,4] <- sub("_", "-", crohns_meta[,4])
-crohns_meta[,4] <- sub("- ", "_", crohns_meta[,4])
-crohns_meta[,4] <- sub("-.*", "", crohns_meta[,4])
+#crohns_meta <- readRDS("crohns_kuhn.rds")
+# X_df <- as.data.frame(matrix(rownames(crohns_meta)))
+# crohns_meta <- cbind(crohns_meta,X_df)
+# crohns_meta[,4] <- sub("P", "B", crohns_meta[,4])
+# crohns_meta[,4] <- sub("_", "-", crohns_meta[,4])
+# crohns_meta[,4] <- sub("- ", "_", crohns_meta[,4])
+# crohns_meta[,4] <- sub("-.*", "", crohns_meta[,4])
 
-merge_combined <- merge(x=crohns_meta,y=crohns_combined_meta,by.x="V1", by.y="X",all.x=TRUE)
-clusters1 <- cbind(merge_combined$V1,merge_combined$clusters)
-clusters1<- as.data.frame(clusters1)
-colnames(clusters1) <- c("cell","clusters")
+# 25,000 blood samples were mislabeled with P
+crohns_meta_all[,1] <- sub("P", "B", crohns_meta_all[,1])
+
+# our query to verify that these are in fact blood tissues
+p1_df = crohns_meta_all[grepl('^P', crohns_meta_all$sample) & crohns_meta_all$tissue=="Blood",]
+p2_df = crohns_meta_all[grepl('^P', crohns_meta_all$sample) & crohns_meta_all$tissue!="Blood",]
 
 crohns_meta_all[,1] <- sub("-.*", "", crohns_meta_all[,1])
 crohns_meta_all[,1] <- sub(" ", "", crohns_meta_all[,1])
-crohns_meta_all <- merge(x=crohns_meta_all,y=clusters1,by.x="cell", by.y="cell",all.x=TRUE)
+
+#merge_combined <- merge(x=crohns_meta,y=crohns_combined_meta,by.x="V1", by.y="X",all.x=TRUE)
+# clusters1 <- cbind(merge_combined$V1,merge_combined$clusters)
+# clusters1<- as.data.frame(clusters1)
+# colnames(clusters1) <- c("V1","clusters")
+#clusters1 <- merge_combined[c("V1","clusters")]
+
+crohns_meta_all <- merge(x=crohns_meta_all,y=crohns_combined_meta,by.x="cell", by.y="X",all.x=TRUE)
+crohns_meta_all <- crohns_meta_all[c("cell", "sample", "disease", "batch", "tissue", "dataset", "clusters")]
 
 # add empty cluster column to HIV meta
 HIV_empty <- matrix(nrow=35750,ncol=1)
