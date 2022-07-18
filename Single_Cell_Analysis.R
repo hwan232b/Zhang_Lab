@@ -349,11 +349,6 @@ HIV_meta_all <- readRDS("/Users/hannahwang/github/Projects/Zhang_lab/HIV_meta_Sh
 
 length(intersect(row.names(crohns_exprs_norm),row.names(HIV_exprs_norm)))
 
-intersect1 <- intersect(row.names(crohns_exprs_norm),row.names(HIV_exprs_norm))
-
-HIV_intersect <- HIV_exprs_norm[intersect1,]
-crohns_intersect <- crohns_exprs_norm[intersect1,]
-
 # add cluster data into crohns_meta_all
 # crohns_combined_meta <- read.csv("/Users/hannahwang/github/Projects/Zhang_lab/GSE163314_All.combined.metadata.csv.gz")
 # crohns_combined_meta1 <- sub("_", "-", crohns_combined_meta[,1])
@@ -418,10 +413,12 @@ crohns_meta_all <- merge(x=crohns_meta_all,y=crohns_combined_meta,by.x="cell", b
 crohns_meta_all <- crohns_meta_all[c("cell", "sample", "disease", "batch", "tissue", "dataset", "clusters")]
 
 # add empty cluster column to HIV meta
-HIV_empty <- matrix(nrow=35750,ncol=1)
-colnames(HIV_empty)[1] <- "clusters"
-HIV_empty <- as.data.frame(HIV_empty)
-HIV_meta_all <- cbind(HIV_meta_all,HIV_empty)
+# HIV_empty <- matrix(nrow=35750,ncol=1)
+# colnames(HIV_empty)[1] <- "clusters"
+# HIV_empty <- as.data.frame(HIV_empty)
+# HIV_meta_all <- cbind(HIV_meta_all,HIV_empty)
+
+HIV_meta_all <- add_column(HIV_meta_all, clusters=NA)
 HIV_meta_all[,1] <- sub("-.*", "", HIV_meta_all[,1])
 HIV_meta_all[,1] <- sub(" ", "", HIV_meta_all[,1])
 
@@ -433,12 +430,35 @@ HIV_meta_all[,1] <- sub(" ", "", HIV_meta_all[,1])
 # crohns_intersect <- unique(rownames(crohns_intersect))
 # HIV_intersect <- unique(rownames(HIV_intersect))
 
-exprs_norm <- cbind(crohns_intersect,HIV_intersect)
+
+
+#exprs_norm <- cbind(crohns_intersect,HIV_intersect)
+colnames(HIV_exprs_norm) <- sub("-.*", "", colnames(HIV_exprs_norm))
+colnames(HIV_exprs_norm) <- sub(" ", "", colnames(HIV_exprs_norm))
+
+colnames(crohns_exprs_norm) <- sub("-.*", "", colnames(crohns_exprs_norm))
+colnames(crohns_exprs_norm) <- sub(" ", "", colnames(crohns_exprs_norm))
+colnames(crohns_exprs_norm) <- sub("P", "B", colnames(crohns_exprs_norm))
+
+HIV_exprs_norm <- HIV_exprs_norm[!is.na(rownames(HIV_exprs_norm)),]
+crohns_exprs_norm <- crohns_exprs_norm[!is.na(rownames(crohns_exprs_norm)),]
+
+intersect1 <- intersect(row.names(crohns_exprs_norm),row.names(HIV_exprs_norm))
+
+HIV_intersect <- HIV_exprs_norm[intersect1,]
+crohns_intersect <- crohns_exprs_norm[intersect1,]
+
+exprs_norm <- cbind(HIV_intersect, crohns_intersect)
+
+#memory too large for this function
+#exprs_norm <- merge(x=HIV_exprs_norm,y=crohns_exprs_norm, by="row.names")
+
 meta_all <- rbind(HIV_meta_all,crohns_meta_all)
+rownames(meta_all) <- NULL
 
 #intersection of meta_all$cell and exprs_norm to make them exact matches
-colnames(exprs_norm) <- sub("-.*", "", colnames(exprs_norm))
-colnames(exprs_norm) <- sub(" ", "", colnames(exprs_norm))
+# colnames(exprs_norm) <- sub("-.*", "", colnames(exprs_norm))
+# colnames(exprs_norm) <- sub(" ", "", colnames(exprs_norm))
 
 
 intersect2 <- intersect(colnames(exprs_norm),meta_all$cell)
@@ -446,13 +466,13 @@ meta_all <- meta_all[meta_all$cell %in% intersect2,]
 
 # function "all" order matters so we are alphabetizing
 exprs_norm <- exprs_norm[,order(colnames(exprs_norm))]
-meta_all <- meta_all[order(rownames(meta_all)),]
+meta_all <- meta_all[order(meta_all$cell),]
 
 # check if TRUE
 all(colnames(exprs_norm) == meta_all$cell)
 
 # removing all rownames with missing values 
-exprs_norm <- exprs_norm[-2,]
+# exprs_norm <- exprs_norm[-2,]
 
 # finding highly variable sample
 genes_exclude <- grep("^MT-|^RPL|^RPS|MALAT1|MIR-", row.names(exprs_norm), value = TRUE)
@@ -520,7 +540,7 @@ reference = symphony::buildReferenceFromHarmonyObj(
   )
 
 # save
-saveRDS(reference, '2022_07_14_single_cell_analysis_clusters.rds')
+saveRDS(reference, '2022_07_17_single_cell_analysis_clusters.rds')
 
 
 # Visualize
